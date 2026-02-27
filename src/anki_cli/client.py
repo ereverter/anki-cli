@@ -87,3 +87,39 @@ class AnkiClient:
 
     def cards_reviewed_today(self) -> int:
         return len(self._invoke("findCards", query="rated:1"))
+
+    def find_cards(self, query: str) -> list[int]:
+        return self._invoke("findCards", query=query)
+
+    def suspend(self, card_ids: list[int]) -> None:
+        self._invoke("suspend", cards=card_ids)
+
+    def unsuspend(self, card_ids: list[int]) -> None:
+        self._invoke("unsuspend", cards=card_ids)
+
+    def sync(self) -> None:
+        self._invoke("sync")
+
+    def create_deck(self, name: str) -> int:
+        return self._invoke("createDeck", deck=name)
+
+    def delete_decks(self, names: list[str], cards_too: bool = True) -> None:
+        self._invoke("deleteDecks", decks=names, cardsToo=cards_too)
+
+    def change_deck(self, card_ids: list[int], deck: str) -> None:
+        self._invoke("changeDeck", cards=card_ids, deck=deck)
+
+    def store_media_file(self, filename: str, path: str) -> str:
+        return self._invoke("storeMediaFile", filename=filename, path=path)
+
+    def add_notes(self, notes: list[dict[str, Any]]) -> list[int | None]:
+        return self._invoke("addNotes", notes=notes)
+
+    def cards_reviewed_by_day(self) -> list[list]:
+        return self._invoke("getNumCardsReviewedByDay")
+
+    def export_package(self, deck: str, path: str, include_sched: bool = False) -> None:
+        self._invoke("exportPackage", deck=deck, path=path, includeSched=include_sched)
+
+    def import_package(self, path: str) -> None:
+        self._invoke("importPackage", path=path)

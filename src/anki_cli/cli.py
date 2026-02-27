@@ -247,11 +247,27 @@ def tag(
 
 
 @app.command()
-def stats() -> None:
-    """Show today's review stats."""
+def stats(
+    days: Annotated[int, typer.Option("--days", "-d", help="Show history for last N days")] = 1,
+) -> None:
+    """Show review stats."""
     client = AnkiClient()
-    reviewed = client.cards_reviewed_today()
-    console.print(Panel(f"[bold green]{reviewed}[/bold green] cards reviewed today", title="Today"))
+    if days == 1:
+        reviewed = client.cards_reviewed_today()
+        console.print(
+            Panel(f"[bold green]{reviewed}[/bold green] cards reviewed today", title="Today")
+        )
+    else:
+        from datetime import date, timedelta
+
+        cutoff = (date.today() - timedelta(days=days)).isoformat()
+        history = [(d, c) for d, c in client.cards_reviewed_by_day() if d >= cutoff]
+        table = Table(title=f"Reviews — last {days} days")
+        table.add_column("Date", style="cyan")
+        table.add_column("Cards", justify="right", style="bold green")
+        for date_str, count in history:
+            table.add_row(date_str, str(count))
+        console.print(table)
     console.print(_deck_table(client.deck_stats(), title="Per-Deck Breakdown"))
 
 
@@ -360,6 +376,8 @@ def import_(
         for info in client.notes_info(existing_ids):
             current_tags_by_id[info["noteId"]] = set(info["tags"])
 
+    new_note_objects: list[dict[str, Any]] = []
+
     for note in notes:
         note_id = note.get("noteId")
         fields = note["fields"]
@@ -391,15 +409,26 @@ def import_(
                 raise typer.Exit(1)
             if dry_run:
                 console.print(f"  [green]create[/green] {model} → {deck}")
+                created += 1
             else:
-                try:
-                    new_id = client.add_note(deck, model, fields, tags or None)
-                    console.print(f"  [green]created[/green] {new_id}")
-                except AnkiError as exc:
-                    console.print(f"  [red]error[/red]: {exc}")
-                    errors += 1
-                    continue
-            created += 1
+                obj: dict[str, Any] = {
+                    "deckName": deck,
+                    "modelName": model,
+                    "fields": fields,
+                }
+                if tags:
+                    obj["tags"] = tags
+                new_note_objects.append(obj)
+
+    if not dry_run and new_note_objects:
+        results = client.add_notes(new_note_objects)
+        for new_id in results:
+            if new_id is None:
+                console.print("  [red]error[/red]: duplicate or invalid note")
+                errors += 1
+            else:
+                console.print(f"  [green]created[/green] {new_id}")
+                created += 1
 
     label = "[dim](dry run)[/dim] " if dry_run else ""
     console.print(
@@ -407,3 +436,149 @@ def import_(
         f" [blue]{updated} updated[/blue],"
         f" [red]{errors} errors[/red]"
     )
+
+
+@app.command()
+def sync() -> None:
+    """Trigger an AnkiWeb sync."""
+    client = AnkiClient()
+    client.sync()
+    console.print("[green]Sync triggered.[/green]")
+
+
+@app.command()
+def suspend(
+    card_id: Annotated[int | None, typer.Argument(help="Card ID")] = None,
+    query: Annotated[
+        str | None, typer.Option("--query", "-q", help="Anki query to select cards")
+    ] = None,
+) -> None:
+    """Suspend cards by ID or query."""
+    if card_id is not None and query is not None:
+        console.print("[red]Specify either a card ID or --query, not both.[/red]")
+        raise typer.Exit(1)
+    if card_id is None and query is None:
+        console.print("[red]Specify a card ID or --query.[/red]")
+        raise typer.Exit(1)
+    client = AnkiClient()
+    ids = client.find_cards(query) if query else [card_id]
+    if not ids:
+        console.print("[yellow]No cards found.[/yellow]")
+        return
+    client.suspend(ids)
+    console.print(f"[green]Suspended {len(ids)} card(s).[/green]")
+
+
+@app.command()
+def unsuspend(
+    card_id: Annotated[int | None, typer.Argument(help="Card ID")] = None,
+    query: Annotated[
+        str | None, typer.Option("--query", "-q", help="Anki query to select cards")
+    ] = None,
+) -> None:
+    """Unsuspend cards by ID or query."""
+    if card_id is not None and query is not None:
+        console.print("[red]Specify either a card ID or --query, not both.[/red]")
+        raise typer.Exit(1)
+    if card_id is None and query is None:
+        console.print("[red]Specify a card ID or --query.[/red]")
+        raise typer.Exit(1)
+    client = AnkiClient()
+    ids = client.find_cards(query) if query else [card_id]
+    if not ids:
+        console.print("[yellow]No cards found.[/yellow]")
+        return
+    client.unsuspend(ids)
+    console.print(f"[green]Unsuspended {len(ids)} card(s).[/green]")
+
+
+@app.command()
+def media(
+    file: Annotated[Path, typer.Argument(help="Local file to store")],
+    name: Annotated[str | None, typer.Option("--name", "-n", help="Filename in collection")] = None,
+) -> None:
+    """Store a media file in the Anki collection."""
+    if not file.exists():
+        console.print(f"[red]File not found:[/red] {file}")
+        raise typer.Exit(1)
+    client = AnkiClient()
+    stored = client.store_media_file(name or file.name, str(file.resolve()))
+    console.print(f"[green]Media stored:[/green] {stored}")
+
+
+@app.command("create-deck")
+def create_deck(
+    name: Annotated[str, typer.Argument(help="Deck name (use :: for nested)")],
+) -> None:
+    """Create a new deck."""
+    client = AnkiClient()
+    deck_id = client.create_deck(name)
+    console.print(f"[green]Deck created:[/green] {name} (id={deck_id})")
+
+
+@app.command("delete-deck")
+def delete_deck(
+    name: Annotated[str, typer.Argument(help="Deck name to delete")],
+    yes: Annotated[bool, typer.Option("--yes", "-y", help="Skip confirmation")] = False,
+    keep_cards: Annotated[
+        bool, typer.Option("--keep-cards", help="Move cards instead of deleting")
+    ] = False,
+) -> None:
+    """Delete a deck."""
+    if not yes:
+        typer.confirm(f"Delete deck '{name}'?", abort=True)
+    client = AnkiClient()
+    client.delete_decks([name], cards_too=not keep_cards)
+    console.print(f"[green]Deck deleted:[/green] {name}")
+
+
+@app.command("change-deck")
+def change_deck(
+    deck: Annotated[str, typer.Argument(help="Target deck name")],
+    query: Annotated[
+        str | None, typer.Option("--query", "-q", help="Anki query to select cards")
+    ] = None,
+    card_ids: Annotated[list[int] | None, typer.Option("--card", "-c", help="Card ID(s)")] = None,
+) -> None:
+    """Move cards to a different deck."""
+    if not query and not card_ids:
+        console.print("[red]Specify --query or --card.[/red]")
+        raise typer.Exit(1)
+    client = AnkiClient()
+    ids: list[int] = []
+    if query:
+        ids = client.find_cards(query)
+        if not ids:
+            console.print("[yellow]No cards found.[/yellow]")
+            return
+    if card_ids:
+        ids = list(set(ids + card_ids))
+    client.change_deck(ids, deck)
+    console.print(f"[green]Moved {len(ids)} card(s) to '{deck}'.[/green]")
+
+
+@app.command("export-deck")
+def export_deck(
+    deck: Annotated[str, typer.Argument(help="Deck name to export")],
+    file: Annotated[Path, typer.Argument(help="Output .apkg path")],
+    include_sched: Annotated[
+        bool, typer.Option("--include-sched", help="Include scheduling data")
+    ] = False,
+) -> None:
+    """Export a deck to an .apkg file."""
+    client = AnkiClient()
+    client.export_package(deck, str(file.resolve()), include_sched)
+    console.print(f"[green]Exported '{deck}' to {file}[/green]")
+
+
+@app.command("import-deck")
+def import_deck(
+    file: Annotated[Path, typer.Argument(help=".apkg file to import")],
+) -> None:
+    """Import a deck from an .apkg file."""
+    if not file.exists():
+        console.print(f"[red]File not found:[/red] {file}")
+        raise typer.Exit(1)
+    client = AnkiClient()
+    client.import_package(str(file.resolve()))
+    console.print(f"[green]Imported {file}[/green]")

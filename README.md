@@ -27,17 +27,26 @@ Usage: anki [OPTIONS] COMMAND [ARGS]...
 │ --help                        Show this message and exit.                    │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ╭─ Commands ───────────────────────────────────────────────────────────────────╮
-│ decks   List decks with review stats.                                        │
-│ models  List available note types.                                           │
-│ search  Search notes using Anki query syntax.                                │
-│ show    Show full details of one or more notes.                              │
-│ add     Add a new note.                                                      │
-│ edit    Edit fields of an existing note.                                     │
-│ delete  Delete a note.                                                       │
-│ tag     Add or remove tags on notes.                                         │
-│ stats   Show today's review stats.                                           │
-│ export  Export notes to JSON or CSV.                                         │
-│ import  Import notes from JSON or CSV.                                       │
+│ decks        List decks with review stats.                                   │
+│ models       List available note types.                                      │
+│ search       Search notes using Anki query syntax.                           │
+│ show         Show full details of one or more notes.                         │
+│ add          Add a new note.                                                 │
+│ edit         Edit fields of an existing note.                                │
+│ delete       Delete a note.                                                  │
+│ tag          Add or remove tags on notes.                                    │
+│ stats        Show review stats.                                              │
+│ export       Export notes to JSON or CSV.                                    │
+│ import       Import notes from JSON or CSV.                                  │
+│ sync         Trigger an AnkiWeb sync.                                        │
+│ suspend      Suspend cards by ID or query.                                   │
+│ unsuspend    Unsuspend cards by ID or query.                                 │
+│ media        Store a media file in the Anki collection.                      │
+│ create-deck  Create a new deck.                                              │
+│ delete-deck  Delete a deck.                                                  │
+│ change-deck  Move cards to a different deck.                                 │
+│ export-deck  Export a deck to an .apkg file.                                 │
+│ import-deck  Import a deck from an .apkg file.                               │
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 <!-- usage-end -->
