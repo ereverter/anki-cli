@@ -41,3 +41,11 @@ Usage: anki [OPTIONS] COMMAND [ARGS]...
 ╰──────────────────────────────────────────────────────────────────────────────╯
 ```
 <!-- usage-end -->
+
+## write-note skill
+
+Includes a [Claude Code skill](.claude/skills/write-note/SKILL.md) (`/write-note`) for creating cards that follow the opinionated guidelines from [An Opinionated Guide to Using Anki Correctly](https://www.lesswrong.com/posts/mGfpALAjbRvGRAJhJ/an-opinionated-guide-to-using-anki-correctly).
+
+```
+/write-note are these notes <paste notes> good based on the content <paste content>
+```
