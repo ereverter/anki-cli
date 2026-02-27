@@ -77,23 +77,57 @@ def models() -> None:
     console.print(table)
 
 
+def _strip_html(text: str) -> str:
+    import re
+
+    return re.sub(r"<[^>]+>", " ", text)
+
+
+def _fuzzy_score(query: str, note: dict[str, Any]) -> float:
+    from rapidfuzz import fuzz
+
+    searchable = _strip_html(" ".join(v["value"] for v in note["fields"].values())).lower()
+    words = searchable.split()
+    if not words:
+        return 0.0
+    query_words = query.lower().split()
+    return sum(max(fuzz.ratio(qw, w) for w in words) for qw in query_words) / len(query_words)
+
+
 @app.command()
 def search(
     query: Annotated[str, typer.Argument(help="Anki search query")],
     limit: Annotated[int, typer.Option("--limit", "-l", help="Max results")] = 20,
     brief: Annotated[bool, typer.Option("--brief", "-B", help="Truncated table view")] = False,
+    fuzzy: Annotated[bool, typer.Option("--fuzzy", "-f", help="Fuzzy text search")] = False,
 ) -> None:
     """Search notes using Anki query syntax."""
     client = AnkiClient()
-    ids = client.find_notes(query)
-    if not ids:
-        console.print("[yellow]No notes found.[/yellow]")
-        return
 
-    infos = client.notes_info(ids[:limit])
+    if fuzzy:
+        all_ids = client.find_notes("deck:*")
+        if not all_ids:
+            console.print("[yellow]No notes found.[/yellow]")
+            return
+        all_notes = client.notes_info(all_ids)
+        scored = [(note, _fuzzy_score(query, note)) for note in all_notes]
+        scored = [(note, score) for note, score in scored if score > 70]
+        scored.sort(key=lambda x: x[1], reverse=True)
+        if not scored:
+            console.print("[yellow]No notes found.[/yellow]")
+            return
+        infos = [note for note, _ in scored[:limit]]
+        total = len(scored)
+    else:
+        ids = client.find_notes(query)
+        if not ids:
+            console.print("[yellow]No notes found.[/yellow]")
+            return
+        infos = client.notes_info(ids[:limit])
+        total = len(ids)
 
     if brief:
-        table = Table(title=f"Search: {query} ({len(ids)} results)")
+        table = Table(title=f"Search: {query} ({total} results)")
         table.add_column("Note ID", style="dim")
         table.add_column("Model", style="magenta")
         table.add_column("Tags", style="green")
@@ -110,11 +144,11 @@ def search(
             )
         console.print(table)
     else:
-        console.print(f"[bold]Search: {query}[/bold] ({len(ids)} results)\n")
+        console.print(f"[bold]Search: {query}[/bold] ({total} results)\n")
         for note in infos:
             console.print(_render_note_panel(note))
-    if len(ids) > limit:
-        console.print(f"[dim]Showing {limit} of {len(ids)} results.[/dim]")
+    if total > limit:
+        console.print(f"[dim]Showing {limit} of {total} results.[/dim]")
 
 
 @app.command()
