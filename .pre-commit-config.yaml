@@ -5,3 +5,11 @@ repos:
       - id: ruff
         args: [--fix]
       - id: ruff-format
+  - repo: local
+    hooks:
+      - id: update-readme
+        name: update readme usage
+        entry: uv run python scripts/update_readme.py
+        language: system
+        pass_filenames: false
+        files: ^src/anki_cli/cli\.py$

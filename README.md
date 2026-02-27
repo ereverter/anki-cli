@@ -16,16 +16,28 @@ uv sync
 
 ## Usage
 
+<!-- usage-start -->
 ```
-anki decks                          # list decks with review stats
-anki models                         # list note types
-anki search <query> [-l LIMIT] [-B]  # search notes (-B for brief table)
-anki show <note-id> [<note-id> ...] # show note details
-anki add -d DECK -f key=value       # add a note
-anki edit <note-id> -f key=value    # edit a note
-anki delete <note-id>               # delete a note
-anki tag [<note-id>] [-q QUERY] -a/-r # add/remove tags
-anki stats                          # today's review stats
-anki export <query> <file>          # export to JSON/CSV
-anki import <file> -d DECK          # import from JSON/CSV
+Usage: anki [OPTIONS] COMMAND [ARGS]...                                        
+                                                                                
+╭─ Options ────────────────────────────────────────────────────────────────────╮
+│ --install-completion          Install completion for the current shell.      │
+│ --show-completion             Show completion for the current shell, to copy │
+│                               it or customize the installation.              │
+│ --help                        Show this message and exit.                    │
+╰──────────────────────────────────────────────────────────────────────────────╯
+╭─ Commands ───────────────────────────────────────────────────────────────────╮
+│ decks   List decks with review stats.                                        │
+│ models  List available note types.                                           │
+│ search  Search notes using Anki query syntax.                                │
+│ show    Show full details of one or more notes.                              │
+│ add     Add a new note.                                                      │
+│ edit    Edit fields of an existing note.                                     │
+│ delete  Delete a note.                                                       │
+│ tag     Add or remove tags on notes.                                         │
+│ stats   Show today's review stats.                                           │
+│ export  Export notes to JSON or CSV.                                         │
+│ import  Import notes from JSON or CSV.                                       │
+╰──────────────────────────────────────────────────────────────────────────────╯
 ```
+<!-- usage-end -->

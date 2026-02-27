@@ -90,4 +90,4 @@ When using `anki add` or `anki import` to create cards:
 
 Cards are expensive — each one is a long-term commitment to review. Start by only ankifying what you absolutely must know. Ruthlessly suspend cards that don't pay enough rent. You can always lower your bar later.
 
-$ARGUMENTS
+Consider the guidelines above to: $ARGUMENTS
