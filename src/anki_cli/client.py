@@ -118,6 +118,9 @@ class AnkiClient:
     def cards_reviewed_by_day(self) -> list[list]:
         return self._invoke("getNumCardsReviewedByDay")
 
+    def collection_stats_html(self) -> str:
+        return self._invoke("getCollectionStatsHTML")
+
     def export_package(self, deck: str, path: str, include_sched: bool = False) -> None:
         self._invoke("exportPackage", deck=deck, path=path, includeSched=include_sched)
 
