@@ -2,5 +2,6 @@ __pycache__/
 *.egg-info/
 dist/
 .venv/
+.ruff_cache/
 .claude/*
 !.claude/skills/

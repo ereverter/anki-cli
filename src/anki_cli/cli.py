@@ -12,10 +12,21 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from anki_cli.client import AnkiClient, AnkiError
+from anki_cli.client import AnkiClient, AnkiConnectionError, AnkiError
 
 app = typer.Typer(no_args_is_help=True)
 console = Console()
+
+
+def main() -> None:
+    try:
+        app()
+    except AnkiConnectionError as exc:
+        console.print(f"[red]{exc}[/red]")
+        raise SystemExit(1) from None
+    except AnkiError as exc:
+        console.print(f"[red]Anki error:[/red] {exc}")
+        raise SystemExit(1) from None
 
 
 def _parse_fields(raw: list[str]) -> dict[str, str]:
@@ -91,6 +102,8 @@ def _fuzzy_score(query: str, note: dict[str, Any]) -> float:
     if not words:
         return 0.0
     query_words = query.lower().split()
+    if not query_words:
+        return 0.0
     return sum(max(fuzz.ratio(qw, w) for w in words) for qw in query_words) / len(query_words)
 
 
@@ -130,6 +143,10 @@ def search(
     fuzzy: Annotated[bool, typer.Option("--fuzzy", "-f", help="Fuzzy text search")] = False,
 ) -> None:
     """Search notes using Anki query syntax."""
+    if fuzzy and not query.strip():
+        console.print("[red]Fuzzy search requires a non-empty query.[/red]")
+        raise typer.Exit(2)
+
     client = AnkiClient()
 
     if fuzzy:
@@ -341,7 +358,11 @@ def _write_json(notes: list[dict], path: Path) -> None:
 def _write_csv(notes: list[dict], path: Path) -> None:
     if not notes:
         return
-    field_names = list(notes[0]["fields"].keys())
+    seen: dict[str, None] = {}
+    for note in notes:
+        for key in note["fields"]:
+            seen.setdefault(key, None)
+    field_names = list(seen)
     with path.open("w", newline="") as f:
         writer = csv.writer(f)
         writer.writerow(["noteId", "modelName", "tags"] + field_names)
@@ -411,13 +432,26 @@ def import_(
     dry_run: Annotated[bool, typer.Option("--dry-run", help="Preview without applying")] = False,
 ) -> None:
     """Import notes from JSON or CSV."""
+    if not file.exists():
+        console.print(f"[red]File not found:[/red] {file}")
+        raise typer.Exit(1)
+
     ext = file.suffix.lower()
-    if ext == ".json":
-        notes = _read_json(file)
-    elif ext == ".csv":
-        notes = _read_csv(file)
-    else:
-        console.print(f"[red]Unsupported format:[/red] {ext} (use .json or .csv)")
+    try:
+        if ext == ".json":
+            notes = _read_json(file)
+        elif ext == ".csv":
+            notes = _read_csv(file)
+        else:
+            console.print(f"[red]Unsupported format:[/red] {ext} (use .json or .csv)")
+            raise typer.Exit(1)
+    except (json.JSONDecodeError, csv.Error, KeyError, ValueError) as exc:
+        console.print(f"[red]Failed to parse {file.name}:[/red] {exc}")
+        raise typer.Exit(1) from None
+
+    has_new_notes = any(not n.get("noteId") for n in notes)
+    if has_new_notes and not deck:
+        console.print("[red]--deck required for new notes (missing noteId)[/red]")
         raise typer.Exit(1)
 
     client = AnkiClient()
@@ -457,9 +491,6 @@ def import_(
             updated += 1
         else:
             model = note.get("modelName", "Basic")
-            if not deck:
-                console.print("[red]--deck required for new notes (missing noteId)[/red]")
-                raise typer.Exit(1)
             if dry_run:
                 console.print(f"  [green]create[/green] {model} → {deck}")
                 created += 1
