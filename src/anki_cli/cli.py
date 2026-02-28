@@ -249,9 +249,27 @@ def tag(
 @app.command()
 def stats(
     days: Annotated[int, typer.Option("--days", "-d", help="Show history for last N days")] = 1,
+    collection: Annotated[
+        bool, typer.Option("--collection", "-c", help="Open full collection stats in browser")
+    ] = False,
 ) -> None:
     """Show review stats."""
     client = AnkiClient()
+
+    if collection:
+        import tempfile
+        import webbrowser
+        from importlib.resources import files
+
+        template = files("anki_cli").joinpath("stats.html").read_text()
+        body = client.collection_stats_html()
+        with tempfile.NamedTemporaryFile("w", suffix=".html", delete=False) as f:
+            f.write(template.replace("{body}", body))
+            path = f.name
+        webbrowser.open(f"file://{path}")
+        console.print("[green]Opened collection stats in browser.[/green]")
+        return
+
     if days == 1:
         reviewed = client.cards_reviewed_today()
         console.print(
