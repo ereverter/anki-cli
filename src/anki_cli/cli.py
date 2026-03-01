@@ -178,15 +178,27 @@ def search(
 def list_(
     deck: Annotated[str | None, typer.Option("--deck", "-d", help="Filter by deck")] = None,
     tag: Annotated[str | None, typer.Option("--tag", "-t", help="Filter by tag")] = None,
+    flag: Annotated[
+        int | None, typer.Option("--flag", "-F", help="Flag color (1-7) or 0 for any")
+    ] = None,
     limit: Annotated[int, typer.Option("--limit", "-l", help="Max results")] = 20,
     brief: Annotated[bool, typer.Option("--brief", "-B", help="Truncated table view")] = False,
 ) -> None:
-    """List notes, optionally filtered by deck and/or tag."""
+    """List notes, optionally filtered by deck, tag, and/or flag."""
+    if flag is not None and not 0 <= flag <= 7:
+        console.print("[red]--flag must be 0 (any) or 1-7.[/red]")
+        raise typer.Exit(2)
+
     parts = []
     if deck:
         parts.append(f'"deck:{deck}"')
     if tag:
         parts.append(f'"tag:{tag}"')
+    if flag is not None:
+        if flag == 0:
+            parts.append("(" + " OR ".join(f"flag:{i}" for i in range(1, 8)) + ")")
+        else:
+            parts.append(f"flag:{flag}")
     query = " ".join(parts) or "deck:*"
 
     client = AnkiClient()
@@ -200,6 +212,12 @@ def list_(
         title = f"Deck: {deck}"
     if tag:
         title += f" [tag:{tag}]" if deck else f"Tag: {tag}"
+    if flag is not None:
+        flag_label = "Flagged" if flag == 0 else f"Flag: {flag}"
+        if deck or tag:
+            title += f" [{flag_label.lower()}]"
+        else:
+            title = flag_label
     _render_notes(infos, len(ids), title, limit, brief)
 
 

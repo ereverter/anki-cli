@@ -23,5 +23,16 @@ class SearchCommandTests(unittest.TestCase):
         self.assertEqual(_fuzzy_score("", note), 0.0)
 
 
+class ListFlagTests(unittest.TestCase):
+    def test_flag_rejects_out_of_range(self) -> None:
+        result = runner.invoke(app, ["list", "--flag", "9"])
+        self.assertEqual(result.exit_code, 2)
+        self.assertIn("--flag must be 0 (any) or 1-7.", result.stdout)
+
+    def test_flag_rejects_negative(self) -> None:
+        result = runner.invoke(app, ["list", "--flag", "-1"])
+        self.assertNotEqual(result.exit_code, 0)
+
+
 if __name__ == "__main__":
     unittest.main()
