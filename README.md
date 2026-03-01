@@ -30,7 +30,7 @@ Usage: anki [OPTIONS] COMMAND [ARGS]...
 │ decks        List decks with review stats.                                   │
 │ models       List available note types.                                      │
 │ search       Search notes using Anki query syntax.                           │
-│ list         List notes, optionally filtered by deck and/or tag.             │
+│ list         List notes, optionally filtered by deck, tag, and/or flag.      │
 │ show         Show full details of one or more notes.                         │
 │ add          Add a new note.                                                 │
 │ edit         Edit fields of an existing note.                                │
