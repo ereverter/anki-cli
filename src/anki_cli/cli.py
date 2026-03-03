@@ -17,6 +17,27 @@ from anki_cli.client import AnkiClient, AnkiConnectionError, AnkiError
 app = typer.Typer(no_args_is_help=True)
 console = Console()
 
+FLAG_NAMES: dict[str, int] = {
+    "red": 1,
+    "orange": 2,
+    "green": 3,
+    "blue": 4,
+    "pink": 5,
+    "turquoise": 6,
+    "purple": 7,
+}
+FLAG_COLORS: dict[int, str] = {v: k for k, v in FLAG_NAMES.items()}
+
+
+def _parse_flag(value: str) -> int:
+    low = value.lower()
+    if low in FLAG_NAMES:
+        return FLAG_NAMES[low]
+    try:
+        return int(value)
+    except ValueError:
+        return -1
+
 
 def main() -> None:
     try:
@@ -179,26 +200,30 @@ def list_(
     deck: Annotated[str | None, typer.Option("--deck", "-d", help="Filter by deck")] = None,
     tag: Annotated[str | None, typer.Option("--tag", "-t", help="Filter by tag")] = None,
     flag: Annotated[
-        int | None, typer.Option("--flag", "-F", help="Flag color (1-7) or 0 for any")
+        str | None,
+        typer.Option("--flag", "-F", help="Flag color name or number (1-7, 0=any)"),
     ] = None,
     limit: Annotated[int, typer.Option("--limit", "-l", help="Max results")] = 20,
     brief: Annotated[bool, typer.Option("--brief", "-B", help="Truncated table view")] = False,
 ) -> None:
     """List notes, optionally filtered by deck, tag, and/or flag."""
-    if flag is not None and not 0 <= flag <= 7:
-        console.print("[red]--flag must be 0 (any) or 1-7.[/red]")
-        raise typer.Exit(2)
+    flag_num: int | None = None
+    if flag is not None:
+        flag_num = _parse_flag(flag)
+        if not 0 <= flag_num <= 7:
+            console.print("[red]--flag must be 0 (any), 1-7, or a color name.[/red]")
+            raise typer.Exit(2)
 
     parts = []
     if deck:
         parts.append(f'"deck:{deck}"')
     if tag:
         parts.append(f'"tag:{tag}"')
-    if flag is not None:
-        if flag == 0:
+    if flag_num is not None:
+        if flag_num == 0:
             parts.append("(" + " OR ".join(f"flag:{i}" for i in range(1, 8)) + ")")
         else:
-            parts.append(f"flag:{flag}")
+            parts.append(f"flag:{flag_num}")
     query = " ".join(parts) or "deck:*"
 
     client = AnkiClient()
@@ -212,8 +237,10 @@ def list_(
         title = f"Deck: {deck}"
     if tag:
         title += f" [tag:{tag}]" if deck else f"Tag: {tag}"
-    if flag is not None:
-        flag_label = "Flagged" if flag == 0 else f"Flag: {flag}"
+    if flag_num is not None:
+        flag_label = (
+            "Flagged" if flag_num == 0 else f"Flag: {FLAG_COLORS.get(flag_num, str(flag_num))}"
+        )
         if deck or tag:
             title += f" [{flag_label.lower()}]"
         else:
@@ -606,6 +633,39 @@ def media(
     client = AnkiClient()
     stored = client.store_media_file(name or file.name, str(file.resolve()))
     console.print(f"[green]Media stored:[/green] {stored}")
+
+
+@app.command()
+def flag(
+    flag_value: Annotated[str, typer.Argument(help="Color name or number (1-7, 0=clear)")],
+    card_id: Annotated[int | None, typer.Option("--card", "-c", help="Card ID")] = None,
+    query: Annotated[
+        str | None, typer.Option("--query", "-q", help="Anki query to select cards")
+    ] = None,
+) -> None:
+    """Set or clear a flag on cards."""
+    flag_num = _parse_flag(flag_value)
+    if not 0 <= flag_num <= 7:
+        console.print("[red]Flag must be 0 (clear), 1-7, or a color name.[/red]")
+        raise typer.Exit(2)
+    if card_id is not None and query is not None:
+        console.print("[red]Specify either --card or --query, not both.[/red]")
+        raise typer.Exit(1)
+    if card_id is None and query is None:
+        console.print("[red]Specify --card or --query.[/red]")
+        raise typer.Exit(1)
+
+    client = AnkiClient()
+    ids = client.find_cards(query) if query else [card_id]
+    if not ids:
+        console.print("[yellow]No cards found.[/yellow]")
+        return
+    client.set_flag(ids, flag_num)
+    label = FLAG_COLORS.get(flag_num, str(flag_num))
+    if flag_num == 0:
+        console.print(f"[green]Cleared flag on {len(ids)} card(s).[/green]")
+    else:
+        console.print(f"[green]Set {label} flag on {len(ids)} card(s).[/green]")
 
 
 @app.command("create-deck")

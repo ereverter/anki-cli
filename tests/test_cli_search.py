@@ -2,7 +2,7 @@ import unittest
 
 from typer.testing import CliRunner
 
-from anki_cli.cli import _fuzzy_score, app
+from anki_cli.cli import _fuzzy_score, _parse_flag, app
 
 runner = CliRunner()
 
@@ -27,11 +27,53 @@ class ListFlagTests(unittest.TestCase):
     def test_flag_rejects_out_of_range(self) -> None:
         result = runner.invoke(app, ["list", "--flag", "9"])
         self.assertEqual(result.exit_code, 2)
-        self.assertIn("--flag must be 0 (any) or 1-7.", result.stdout)
+        self.assertIn("--flag must be 0 (any), 1-7, or a color name.", result.stdout)
 
     def test_flag_rejects_negative(self) -> None:
         result = runner.invoke(app, ["list", "--flag", "-1"])
         self.assertNotEqual(result.exit_code, 0)
+
+
+class ParseFlagTests(unittest.TestCase):
+    def test_color_names(self) -> None:
+        self.assertEqual(_parse_flag("red"), 1)
+        self.assertEqual(_parse_flag("orange"), 2)
+        self.assertEqual(_parse_flag("green"), 3)
+        self.assertEqual(_parse_flag("blue"), 4)
+        self.assertEqual(_parse_flag("pink"), 5)
+        self.assertEqual(_parse_flag("turquoise"), 6)
+        self.assertEqual(_parse_flag("purple"), 7)
+
+    def test_case_insensitive(self) -> None:
+        self.assertEqual(_parse_flag("Red"), 1)
+        self.assertEqual(_parse_flag("ORANGE"), 2)
+
+    def test_numbers(self) -> None:
+        self.assertEqual(_parse_flag("0"), 0)
+        self.assertEqual(_parse_flag("3"), 3)
+
+    def test_invalid_returns_negative(self) -> None:
+        self.assertEqual(_parse_flag("nope"), -1)
+
+
+class FlagCommandTests(unittest.TestCase):
+    def test_flag_rejects_out_of_range(self) -> None:
+        result = runner.invoke(app, ["flag", "9", "--card", "123"])
+        self.assertEqual(result.exit_code, 2)
+
+    def test_flag_rejects_invalid_name(self) -> None:
+        result = runner.invoke(app, ["flag", "nope", "--card", "123"])
+        self.assertEqual(result.exit_code, 2)
+
+    def test_flag_requires_card_or_query(self) -> None:
+        result = runner.invoke(app, ["flag", "red"])
+        self.assertEqual(result.exit_code, 1)
+        self.assertIn("Specify --card or --query.", result.stdout)
+
+    def test_flag_rejects_both_card_and_query(self) -> None:
+        result = runner.invoke(app, ["flag", "red", "--card", "123", "--query", "deck:*"])
+        self.assertEqual(result.exit_code, 1)
+        self.assertIn("not both", result.stdout)
 
 
 if __name__ == "__main__":

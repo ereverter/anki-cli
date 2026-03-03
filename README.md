@@ -43,6 +43,7 @@ Usage: anki [OPTIONS] COMMAND [ARGS]...
 │ suspend      Suspend cards by ID or query.                                   │
 │ unsuspend    Unsuspend cards by ID or query.                                 │
 │ media        Store a media file in the Anki collection.                      │
+│ flag         Set or clear a flag on cards.                                   │
 │ create-deck  Create a new deck.                                              │
 │ delete-deck  Delete a deck.                                                  │
 │ change-deck  Move cards to a different deck.                                 │

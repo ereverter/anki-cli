@@ -97,6 +97,13 @@ class AnkiClient:
     def unsuspend(self, card_ids: list[int]) -> None:
         self._invoke("unsuspend", cards=card_ids)
 
+    def cards_info(self, card_ids: list[int]) -> list[dict[str, Any]]:
+        return self._invoke("cardsInfo", cards=card_ids)
+
+    def set_flag(self, card_ids: list[int], flag: int) -> None:
+        for cid in card_ids:
+            self._invoke("setSpecificValueOfCard", card=cid, keys=["flags"], newValues=[flag])
+
     def sync(self) -> None:
         self._invoke("sync")
 
